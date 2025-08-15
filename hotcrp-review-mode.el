@@ -44,6 +44,7 @@
 
 (defcustom hotcrp-review-ignore-line-regexps
   '("^\\s-*==[+*-]==.*"         ;; HotCRP headings: +, -, or *
+    "^[^ \t\n].*:\\s*$"          ;; form prompts, e.g. "Overall merit:"
     "^\\s-*\\[.*\\]\\s*$"        ;; bracketed notes/instructions
     "^\\s-*$")                   ;; empty lines
   "Regexps for lines to ignore when counting words."
@@ -165,12 +166,27 @@
              (badge (hotcrp-review--format-badge words)))
         (hotcrp-review--put-badge-at-eol start badge)))))
 
+(defun hotcrp-review--count-total-words ()
+  "Return total word count for all reviews in the buffer."
+  (save-excursion
+    (let ((papers (hotcrp-review--scan-papers)))
+      (if (null papers)
+          0
+        (cl-reduce #'+ (mapcar (lambda (pl)
+                                 (hotcrp-review--count-range (plist-get pl :start)
+                                                             (plist-get pl :end)))
+                               papers))))))
+
 (defun hotcrp-review--update-modeline-and-header ()
   "Update modeline and optional header line for the current review."
   (let* ((pl (hotcrp-review--paper-bounds-at (point)))
          (need hotcrp-review-word-threshold))
     (if (not pl)
-        (setq hotcrp-review--modeline-string "")
+        (let ((total-words (hotcrp-review--count-total-words)))
+          (setq hotcrp-review--modeline-string
+                (if (and hotcrp-review-show-modeline (> total-words 0))
+                    (format " HC Total:%dw" total-words)
+                  "")))
       (let* ((words (hotcrp-review--count-range (plist-get pl :start)
                                                 (plist-get pl :end)))
              (ok    (>= words need))
