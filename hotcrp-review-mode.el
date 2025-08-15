@@ -91,7 +91,8 @@
         (countable-sections '("^\\s-*==\\*== Paper summary"
                              "^\\s-*==\\*== Comments for authors"
                              "^\\s-*==\\*== Comments for PC"
-                             "^\\s-*==\\+== Scratchpad.*")))
+                             "^\\s-*==\\+== Scratchpad.*"))
+        (cleanup-regexps '("^\\s-*\\[.*\\]\\s*$" "^\\s-*$")))
     (with-temp-buffer
       (insert review-text)
       (dolist (section-re countable-sections)
@@ -107,6 +108,11 @@
               (let ((section-text (buffer-substring-no-properties content-start content-end)))
                 (with-temp-buffer
                   (insert section-text)
+                  (goto-char (point-min))
+                  (while (re-search-forward "\r$" nil t) (replace-match ""))
+                  (dolist (re cleanup-regexps)
+                    (goto-char (point-min))
+                    (flush-lines re))
                   (goto-char (point-min))
                   (cl-incf total-words (how-many "\\w+" (point-min) (point-max))))))))))
     total-words))
@@ -267,35 +273,6 @@
         (view-mode 1)
         (pop-to-buffer (current-buffer))))))
 
-(defun hotcrp-review-debug-info ()
-  "Display debugging information for hotcrp-review-mode."
-  (interactive)
-  (let ((pl (hotcrp-review--paper-bounds-at (point)))
-        (is-mode-active (eq major-mode 'hotcrp-review-mode)))
-    (with-current-buffer (get-buffer-create "*HotCRP Debug*")
-      (erase-buffer)
-      (insert (format "HotCRP Review Mode Debug Info\n"))
-      (insert (format "=============================\n"))
-      (insert (format "Mode active? %s\n" is-mode-active))
-      (insert (format "Major mode: %s\n" major-mode))
-      (insert (format "Cursor position (point): %d\n" (point)))
-      (insert (format "Buffer size (point-max): %d\n" (point-max)))
-      (insert (format "\n--- Paper Bounds ---\n"))
-      (if (not pl)
-          (insert "hotcrp-review--paper-bounds-at returned nil.\n")
-        (let* ((start (plist-get pl :start))
-               (end (plist-get pl :end))
-               (paper (plist-get pl :paper))
-               (words (hotcrp-review--count-range start end)))
-          (insert (format "Found review for paper #%s\n" paper))
-          (insert (format "Start position: %d\n" start))
-          (insert (format "End position: %d\n" end))
-          (insert (format "\n--- Word Count ---\n"))
-          (insert (format "hotcrp-review--count-range returned: %d words\n" words))
-          (insert (format "\n--- Review Text Snippet (up to 500 chars) ---\n"))
-          (insert (buffer-substring-no-properties start (min end (+ start 500))))))
-      (pop-to-buffer (current-buffer)))))
-
 (defun hotcrp-review-toggle-header-line ()
   "Toggle header-line warning visibility."
   (interactive)
@@ -314,7 +291,6 @@
     (define-key map (kbd "C-c C-w") #'hotcrp-review-count-current)
     (define-key map (kbd "C-c C-s") #'hotcrp-review-summarize)
     (define-key map (kbd "C-c C-h") #'hotcrp-review-toggle-header-line)
-    (define-key map (kbd "C-c C-d") #'hotcrp-review-debug-info)
     map)
   "Keymap for `hotcrp-review-mode'.")
 
@@ -347,7 +323,7 @@
   (add-hook 'post-command-hook #'hotcrp-review--update-modeline-and-header nil t))
 
 ;;;###autoload
-(add-to-list 'auto-mode-alist '("\\`==\\+== .* Paper Review Form" . hotcrp-review-mode))
+(add-to-list 'auto-mode-alist '("\\`==\\+== Begin Review #" . hotcrp-review-mode))
 
 (provide 'hotcrp-review-mode)
 ;;; hotcrp-review-mode.el ends here
