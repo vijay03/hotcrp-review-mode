@@ -91,8 +91,7 @@
         (countable-sections '("^\\s-*==\\*== Paper summary"
                              "^\\s-*==\\*== Comments for authors"
                              "^\\s-*==\\*== Comments for PC"
-                             "^\\s-*==\\+== Scratchpad"))
-        (cleanup-regexps '("^\\s-*\\[.*\\]\\s*$" "^\\s-*$")))
+                             "^\\s-*==\\+== Scratchpad.*")))
     (with-temp-buffer
       (insert review-text)
       (dolist (section-re countable-sections)
@@ -108,11 +107,6 @@
               (let ((section-text (buffer-substring-no-properties content-start content-end)))
                 (with-temp-buffer
                   (insert section-text)
-                  (goto-char (point-min))
-                  (while (re-search-forward "\r$" nil t) (replace-match ""))
-                  (dolist (re cleanup-regexps)
-                    (goto-char (point-min))
-                    (flush-lines re))
                   (goto-char (point-min))
                   (cl-incf total-words (how-many "\\w+" (point-min) (point-max))))))))))
     total-words))
