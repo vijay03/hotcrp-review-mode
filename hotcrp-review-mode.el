@@ -78,12 +78,9 @@
   (mapc #'delete-overlay hotcrp-review--badge-overlays)
   (setq hotcrp-review--badge-overlays nil))
 
-(defun hotcrp-review--line-matches-any (regexps)
-  (save-excursion
-    (beginning-of-line)
-    (let ((line (buffer-substring-no-properties (line-beginning-position)
-                                                (line-end-position))))
-      (cl-some (lambda (re) (string-match-p re line)) regexps))))
+(defun hotcrp-review--line-matches-any (line regexps)
+  "Return non-nil if LINE matches any regexp in REGEXPS."
+  (cl-some (lambda (re) (string-match-p re line)) regexps))
 
 (defun hotcrp-review--count-range (start end)
   "Count words in region START..END, ignoring form lines."
@@ -91,8 +88,10 @@
     (let ((count 0))
       (goto-char start)
       (while (< (point) end)
-        (unless (hotcrp-review--line-matches-any hotcrp-review-ignore-line-regexps)
-          (setq count (+ count (count-matches "\\w+" (point) (line-end-position)))))
+        (let ((line (buffer-substring-no-properties (line-beginning-position)
+                                                    (line-end-position))))
+          (unless (hotcrp-review--line-matches-any line hotcrp-review-ignore-line-regexps)
+            (setq count (+ count (length (split-string line "\\W+" t))))))
         (forward-line 1))
       count)))
 
