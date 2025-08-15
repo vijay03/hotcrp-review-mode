@@ -43,9 +43,9 @@
   :type 'boolean :group 'hotcrp-review)
 
 (defcustom hotcrp-review-ignore-line-regexps
-  '("^==[+*-]== "                ;; HotCRP headings: +, -, or *
+  '("^\\s-*==[+*-]==.*"         ;; HotCRP headings: +, -, or *
     "^\\s-*\\[.*\\]\\s*$"        ;; bracketed notes/instructions
-    "^[^ \t\n].*:\\s*$"          ;; prompt lines ending with colon
+    "^[^a-z\t\n]*:\\s*$"         ;; prompt lines ending with colon (no lowercase)
     "^\\s-*$")                   ;; empty lines
   "Regexps for lines to ignore when counting words."
   :type '(repeat (string)) :group 'hotcrp-review)
