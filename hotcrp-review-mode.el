@@ -1,6 +1,6 @@
 ;;; hotcrp-review-mode.el --- Standalone HotCRP review editor with counts  -*- lexical-binding: t; -*-
 
-;; Author: Vijay Chidambara + ChatGPT
+;; Author: Vijay Chidambara + Codex + Jules 
 ;; Version: 0.1
 ;; Keywords: outlines, tools
 ;; Package-Requires: ((emacs "26.1"))
