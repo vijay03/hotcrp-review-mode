@@ -178,8 +178,8 @@
              (paper (plist-get pl :paper)))
         (setq hotcrp-review--modeline-string
               (if hotcrp-review-show-modeline
-                  (format " HC R#%s:%dw%s"
-                          paper words (if ok "" (format " (-%d)" rem)))
+                  (format " Words:%d%s"
+                          words (if ok "" (format " (-%d)" rem)))
                 ""))
         (when hotcrp-review-show-header-line-warning
           (setq header-line-format
