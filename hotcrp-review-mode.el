@@ -107,12 +107,12 @@
   "Return plist (:paper :start :end) for the review surrounding POS, or nil."
   (save-excursion
     (goto-char pos)
-    (when (re-search-backward "^==\\+== Paper #\\([0-9]+\\)" nil t)
+    (when (re-search-backward "^==\\+== Begin Review #\\([0-9]+\\)" nil t)
       (let* ((paper (match-string-no-properties 1))
              (start (line-beginning-position))
              (end (save-excursion
                     (forward-char 1)
-                    (if (re-search-forward "^==\\+== Paper #\\([0-9]+\\)" nil t)
+                    (if (re-search-forward "^==\\+== Begin Review #\\([0-9]+\\)" nil t)
                         (match-beginning 0)
                       (point-max)))))
         (list :paper paper :start start :end end)))))
@@ -122,11 +122,11 @@
   (save-excursion
     (goto-char (point-min))
     (let (out)
-      (while (re-search-forward "^==\\+== Paper #\\([0-9]+\\)" nil t)
+      (while (re-search-forward "^==\\+== Begin Review #\\([0-9]+\\)" nil t)
         (let* ((paper (match-string-no-properties 1))
                (start (line-beginning-position))
                (end (save-excursion
-                      (if (re-search-forward "^==\\+== Paper #\\([0-9]+\\)" nil t)
+                      (if (re-search-forward "^==\\+== Begin Review #\\([0-9]+\\)" nil t)
                           (match-beginning 0)
                         (point-max)))))
           (push (list :paper paper :start start :end end) out)))
@@ -178,7 +178,7 @@
              (paper (plist-get pl :paper)))
         (setq hotcrp-review--modeline-string
               (if hotcrp-review-show-modeline
-                  (format " HC P#%s:%dw%s"
+                  (format " HC R#%s:%dw%s"
                           paper words (if ok "" (format " (-%d)" rem)))
                 ""))
         (when hotcrp-review-show-header-line-warning
@@ -292,7 +292,7 @@
   (add-hook 'post-command-hook #'hotcrp-review--update-modeline-and-header nil t))
 
 ;;;###autoload
-(add-to-list 'auto-mode-alist '("\\`==\\+== .* Paper Review Form" . hotcrp-review-mode))
+(add-to-list 'auto-mode-alist '("reviews" . hotcrp-review-mode))
 
 (provide 'hotcrp-review-mode)
 ;;; hotcrp-review-mode.el ends here
