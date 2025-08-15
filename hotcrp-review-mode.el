@@ -44,7 +44,6 @@
 
 (defcustom hotcrp-review-ignore-line-regexps
   '("^\\s-*==[+*-]==.*"         ;; HotCRP headings: +, -, or *
-    "^[^ \t\n].*:\\s*$"          ;; form prompts, e.g. "Overall merit:"
     "^\\s-*\\[.*\\]\\s*$"        ;; bracketed notes/instructions
     "^\\s-*$")                   ;; empty lines
   "Regexps for lines to ignore when counting words."
@@ -86,34 +85,49 @@
       (cl-some (lambda (re) (string-match-p re line)) regexps))))
 
 (defun hotcrp-review--count-range (start end)
-  "Count words in region START..END, ignoring form lines."
-  (let ((src (current-buffer)))
+  "Count words in key sections of a review in region START..END."
+  (let ((review-text (buffer-substring-no-properties start end))
+        (total-words 0)
+        (countable-sections '("^\\s-*==\\*== Paper summary"
+                             "^\\s-*==\\*== Comments for authors"
+                             "^\\s-*==\\*== Comments for PC"
+                             "^\\s-*==\\+== Scratchpad"))
+        (cleanup-regexps '("^\\s-*\\[.*\\]\\s*$" "^\\s-*$")))
     (with-temp-buffer
-      ;; copy region
-      (insert (with-current-buffer src
-                (buffer-substring-no-properties start end)))
-      ;; normalize CRLF if present
-      (goto-char (point-min))
-      (while (re-search-forward "\r$" nil t) (replace-match ""))
-      ;; drop ignored lines
-      (goto-char (point-min))
-      (dolist (re hotcrp-review-ignore-line-regexps)
-        (flush-lines re))
-      ;; count words
-      (goto-char (point-min))
-      (how-many "\\w+" (point-min) (point-max)))))
+      (insert review-text)
+      (dolist (section-re countable-sections)
+        (goto-char (point-min))
+        (while (re-search-forward section-re nil t)
+          (forward-line 1)
+          (let* ((content-start (point))
+                 (content-end (save-excursion
+                                (if (re-search-forward "^\\s-*==[+*-]==" nil t)
+                                    (match-beginning 0)
+                                  (point-max)))))
+            (when (> content-end content-start)
+              (let ((section-text (buffer-substring-no-properties content-start content-end)))
+                (with-temp-buffer
+                  (insert section-text)
+                  (goto-char (point-min))
+                  (while (re-search-forward "\r$" nil t) (replace-match ""))
+                  (dolist (re cleanup-regexps)
+                    (goto-char (point-min))
+                    (flush-lines re))
+                  (goto-char (point-min))
+                  (cl-incf total-words (how-many "\\w+" (point-min) (point-max))))))))))
+    total-words))
 
 
 (defun hotcrp-review--paper-bounds-at (pos)
   "Return plist (:paper :start :end) for the review surrounding POS, or nil."
   (save-excursion
     (goto-char pos)
-    (when (re-search-backward "^==\\+== Paper #\\([0-9]+\\)" nil t)
+    (when (re-search-backward "^==\\+== Begin Review #\\([0-9]+\\)" nil t)
       (let* ((paper (match-string-no-properties 1))
              (start (line-beginning-position))
              (end (save-excursion
                     (forward-char 1)
-                    (if (re-search-forward "^==\\+== Paper #\\([0-9]+\\)" nil t)
+                    (if (re-search-forward "^==\\+== Begin Review #\\([0-9]+\\)" nil t)
                         (match-beginning 0)
                       (point-max)))))
         (list :paper paper :start start :end end)))))
@@ -123,11 +137,11 @@
   (save-excursion
     (goto-char (point-min))
     (let (out)
-      (while (re-search-forward "^==\\+== Paper #\\([0-9]+\\)" nil t)
+      (while (re-search-forward "^==\\+== Begin Review #\\([0-9]+\\)" nil t)
         (let* ((paper (match-string-no-properties 1))
                (start (line-beginning-position))
                (end (save-excursion
-                      (if (re-search-forward "^==\\+== Paper #\\([0-9]+\\)" nil t)
+                      (if (re-search-forward "^==\\+== Begin Review #\\([0-9]+\\)" nil t)
                           (match-beginning 0)
                         (point-max)))))
           (push (list :paper paper :start start :end end) out)))
@@ -186,7 +200,8 @@
           (setq hotcrp-review--modeline-string
                 (if (and hotcrp-review-show-modeline (> total-words 0))
                     (format " HC Total:%dw" total-words)
-                  "")))
+                  "")
+                header-line-format nil))
       (let* ((words (hotcrp-review--count-range (plist-get pl :start)
                                                 (plist-get pl :end)))
              (ok    (>= words need))
@@ -194,7 +209,7 @@
              (paper (plist-get pl :paper)))
         (setq hotcrp-review--modeline-string
               (if hotcrp-review-show-modeline
-                  (format " HC P#%s:%dw%s"
+                  (format " HC R#%s:%dw%s"
                           paper words (if ok "" (format " (-%d)" rem)))
                 ""))
         (when hotcrp-review-show-header-line-warning
