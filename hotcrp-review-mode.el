@@ -43,10 +43,10 @@
   :type 'boolean :group 'hotcrp-review)
 
 (defcustom hotcrp-review-ignore-line-regexps
-  '("^==[+-]== "                 ; HotCRP headings
-    "^\\s-*\\[.*\\]\\s*$"        ; bracketed notes/instructions
-    "^[^ \t\n].*:\\s*$"          ; prompt lines ending with colon
-    "^\\s-*$")                   ; empty lines
+  '("^==[+*-]== "                ;; HotCRP headings: +, -, or *
+    "^\\s-*\\[.*\\]\\s*$"        ;; bracketed notes/instructions
+    "^[^ \t\n].*:\\s*$"          ;; prompt lines ending with colon
+    "^\\s-*$")                   ;; empty lines
   "Regexps for lines to ignore when counting words."
   :type '(repeat (string)) :group 'hotcrp-review)
 
@@ -87,31 +87,22 @@
 
 (defun hotcrp-review--count-range (start end)
   "Count words in region START..END, ignoring form lines."
-  (save-excursion
-    (let ((words 0)
-          (resyntax (syntax-table)))
-      (with-syntax-table (copy-syntax-table resyntax)
-        ;; Treat underscore as word constituent (common in identifiers).
-        (modify-syntax-entry ?_ "w")
-        (goto-char start)
-        (while (< (point) end)
-          (if (hotcrp-review--line-matches-any hotcrp-review-ignore-line-regexps)
-              (forward-line 1)
-            (let ((here (point)))
-              (while (and (< (point) end)
-                          (not (eobp))
-                          (not (bolp))
-                          (not (eolp))
-                          (not (hotcrp-review--line-matches-any hotcrp-review-ignore-line-regexps)))
-                ;; Count with forward-word; this roughly matches \\w+ tally.
-                (let ((p (point)))
-                  (ignore-errors (forward-word 1))
-                  (when (> (point) p)
-                    (cl-incf words))))
-              ;; Move to next line (avoid tight loops on edge cases).
-              (goto-char here)
-              (forward-line 1)))))
-      words)))
+  (let ((src (current-buffer)))
+    (with-temp-buffer
+      ;; copy region
+      (insert (with-current-buffer src
+                (buffer-substring-no-properties start end)))
+      ;; normalize CRLF if present
+      (goto-char (point-min))
+      (while (re-search-forward "\r$" nil t) (replace-match ""))
+      ;; drop ignored lines
+      (goto-char (point-min))
+      (dolist (re hotcrp-review-ignore-line-regexps)
+        (flush-lines re))
+      ;; count words
+      (goto-char (point-min))
+      (how-many "\\w+" (point-min) (point-max)))))
+
 
 (defun hotcrp-review--paper-bounds-at (pos)
   "Return plist (:paper :start :end) for the review surrounding POS, or nil."
@@ -273,8 +264,8 @@
   "Keymap for `hotcrp-review-mode'.")
 
 (defconst hotcrp-review--font-lock
-  `(( "^==\\+== .*" . 'hotcrp-review-form-face)
-    ( "^==[-+]== .*" . 'hotcrp-review-form-face)
+  `(( "^==\\+== .*"     . 'hotcrp-review-form-face)
+    ( "^==[+*-]== .*"   . 'hotcrp-review-form-face)
     ( "^[^ \t\n].*:\\s*$" . 'hotcrp-review-form-face)
     ( "^\\s-*\\[.*\\]\\s*$" . 'hotcrp-review-form-face))
   "Font-lock rules that treat form text as de-emphasized.")
