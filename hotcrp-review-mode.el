@@ -87,25 +87,14 @@
 
 (defun hotcrp-review--count-range (start end)
   "Count words in region START..END, ignoring form lines."
-  (let ((src (current-buffer)))
-    (with-temp-buffer
-      ;; copy region
-      (insert (with-current-buffer src
-                (buffer-substring-no-properties start end)))
-      ;; normalize CRLF if present
-      (goto-char (point-min))
-      (while (re-search-forward "\r$" nil t) (replace-match ""))
-      ;; drop ignored lines
-      (dolist (re hotcrp-review-ignore-line-regexps)
-        ;; `flush-lines' moves point to the start of the following line,
-        ;; so without resetting to `point-min' subsequent patterns would
-        ;; only apply to the tail of the buffer.  Ensure every regexp is
-        ;; run over the whole region.
-        (goto-char (point-min))
-        (flush-lines re))
-      ;; count words
-      (goto-char (point-min))
-      (how-many "\\w+" (point-min) (point-max)))))
+  (save-excursion
+    (let ((count 0))
+      (goto-char start)
+      (while (< (point) end)
+        (unless (hotcrp-review--line-matches-any hotcrp-review-ignore-line-regexps)
+          (setq count (+ count (count-matches "\\w+" (point) (line-end-position)))))
+        (forward-line 1))
+      count)))
 
 
 (defun hotcrp-review--paper-bounds-at (pos)
