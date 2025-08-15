@@ -85,37 +85,22 @@
       (cl-some (lambda (re) (string-match-p re line)) regexps))))
 
 (defun hotcrp-review--count-range (start end)
-  "Count words in key sections of a review in region START..END."
-  (let ((review-text (buffer-substring-no-properties start end))
-        (total-words 0)
-        (countable-sections '("^\\s-*==\\*== Paper summary"
-                             "^\\s-*==\\*== Comments for authors"
-                             "^\\s-*==\\*== Comments for PC"
-                             "^\\s-*==\\+== Scratchpad.*"))
-        (cleanup-regexps '("^\\s-*\\[.*\\]\\s*$" "^\\s-*$")))
+  "Count words in region START..END, ignoring form lines."
+  (let ((src (current-buffer)))
     (with-temp-buffer
-      (insert review-text)
-      (dolist (section-re countable-sections)
-        (goto-char (point-min))
-        (while (re-search-forward section-re nil t)
-          (forward-line 1)
-          (let* ((content-start (point))
-                 (content-end (save-excursion
-                                (if (re-search-forward "^\\s-*==[+*-]==" nil t)
-                                    (match-beginning 0)
-                                  (point-max)))))
-            (when (> content-end content-start)
-              (let ((section-text (buffer-substring-no-properties content-start content-end)))
-                (with-temp-buffer
-                  (insert section-text)
-                  (goto-char (point-min))
-                  (while (re-search-forward "\r$" nil t) (replace-match ""))
-                  (dolist (re cleanup-regexps)
-                    (goto-char (point-min))
-                    (flush-lines re))
-                  (goto-char (point-min))
-                  (cl-incf total-words (how-many "\\w+" (point-min) (point-max))))))))))
-    total-words))
+      ;; copy region
+      (insert (with-current-buffer src
+                (buffer-substring-no-properties start end)))
+      ;; normalize CRLF if present
+      (goto-char (point-min))
+      (while (re-search-forward "\r$" nil t) (replace-match ""))
+      ;; drop ignored lines
+      (goto-char (point-min))
+      (dolist (re hotcrp-review-ignore-line-regexps)
+        (flush-lines re))
+      ;; count words
+      (goto-char (point-min))
+      (how-many "\\w+" (point-min) (point-max)))))
 
 
 (defun hotcrp-review--paper-bounds-at (pos)
@@ -180,28 +165,12 @@
              (badge (hotcrp-review--format-badge words)))
         (hotcrp-review--put-badge-at-eol start badge)))))
 
-(defun hotcrp-review--count-total-words ()
-  "Return total word count for all reviews in the buffer."
-  (save-excursion
-    (let ((papers (hotcrp-review--scan-papers)))
-      (if (null papers)
-          0
-        (cl-reduce #'+ (mapcar (lambda (pl)
-                                 (hotcrp-review--count-range (plist-get pl :start)
-                                                             (plist-get pl :end)))
-                               papers))))))
-
 (defun hotcrp-review--update-modeline-and-header ()
   "Update modeline and optional header line for the current review."
   (let* ((pl (hotcrp-review--paper-bounds-at (point)))
          (need hotcrp-review-word-threshold))
     (if (not pl)
-        (let ((total-words (hotcrp-review--count-total-words)))
-          (setq hotcrp-review--modeline-string
-                (if (and hotcrp-review-show-modeline (> total-words 0))
-                    (format " HC Total:%dw" total-words)
-                  "")
-                header-line-format nil))
+        (setq hotcrp-review--modeline-string "")
       (let* ((words (hotcrp-review--count-range (plist-get pl :start)
                                                 (plist-get pl :end)))
              (ok    (>= words need))
@@ -209,7 +178,7 @@
              (paper (plist-get pl :paper)))
         (setq hotcrp-review--modeline-string
               (if hotcrp-review-show-modeline
-                  (format " HC R#%s:%dw%s"
+                  (format " HC P#%s:%dw%s"
                           paper words (if ok "" (format " (-%d)" rem)))
                 ""))
         (when hotcrp-review-show-header-line-warning
@@ -323,7 +292,7 @@
   (add-hook 'post-command-hook #'hotcrp-review--update-modeline-and-header nil t))
 
 ;;;###autoload
-(add-to-list 'auto-mode-alist '("\\`==\\+== Begin Review #" . hotcrp-review-mode))
+(add-to-list 'auto-mode-alist '("reviews" . hotcrp-review-mode))
 
 (provide 'hotcrp-review-mode)
 ;;; hotcrp-review-mode.el ends here
