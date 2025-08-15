@@ -96,8 +96,12 @@
       (goto-char (point-min))
       (while (re-search-forward "\r$" nil t) (replace-match ""))
       ;; drop ignored lines
-      (goto-char (point-min))
       (dolist (re hotcrp-review-ignore-line-regexps)
+        ;; `flush-lines' moves point to the start of the following line,
+        ;; so without resetting to `point-min' subsequent patterns would
+        ;; only apply to the tail of the buffer.  Ensure every regexp is
+        ;; run over the whole region.
+        (goto-char (point-min))
         (flush-lines re))
       ;; count words
       (goto-char (point-min))
