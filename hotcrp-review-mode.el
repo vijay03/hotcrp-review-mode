@@ -43,8 +43,9 @@
   :type 'boolean :group 'hotcrp-review)
 
 (defcustom hotcrp-review-ignore-line-regexps
-  '("^\\s-*==[+*-]==.*"         ;; HotCRP headings: +, -, or *
+  '("^==[+*-]== "                ;; HotCRP headings: +, -, or *
     "^\\s-*\\[.*\\]\\s*$"        ;; bracketed notes/instructions
+    "^[^ \t\n].*:\\s*$"          ;; prompt lines ending with colon
     "^\\s-*$")                   ;; empty lines
   "Regexps for lines to ignore when counting words."
   :type '(repeat (string)) :group 'hotcrp-review)
@@ -111,6 +112,7 @@
       (let* ((paper (match-string-no-properties 1))
              (start (line-beginning-position))
              (end (save-excursion
+                    (forward-char 1)
                     (if (re-search-forward "^==\\+== Paper #\\([0-9]+\\)" nil t)
                         (match-beginning 0)
                       (point-max)))))
