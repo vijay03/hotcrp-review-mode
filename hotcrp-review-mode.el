@@ -45,7 +45,6 @@
 (defcustom hotcrp-review-ignore-line-regexps
   '("^\\s-*==[+*-]==.*"         ;; HotCRP headings: +, -, or *
     "^\\s-*\\[.*\\]\\s*$"        ;; bracketed notes/instructions
-    "^[^a-z\t\n]*:\\s*$"         ;; prompt lines ending with colon (no lowercase)
     "^\\s-*$")                   ;; empty lines
   "Regexps for lines to ignore when counting words."
   :type '(repeat (string)) :group 'hotcrp-review)
