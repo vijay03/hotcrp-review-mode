@@ -43,9 +43,8 @@
   :type 'boolean :group 'hotcrp-review)
 
 (defcustom hotcrp-review-ignore-line-regexps
-  '("^==[+*-]== "                ;; HotCRP headings: +, -, or *
+  '("^\\s-*==[+*-]==.*"         ;; HotCRP headings: +, -, or *
     "^\\s-*\\[.*\\]\\s*$"        ;; bracketed notes/instructions
-    "^[^ \t\n].*:\\s*$"          ;; prompt lines ending with colon
     "^\\s-*$")                   ;; empty lines
   "Regexps for lines to ignore when counting words."
   :type '(repeat (string)) :group 'hotcrp-review)
@@ -271,6 +270,7 @@
     ( "^\\s-*\\[.*\\]\\s*$" . 'hotcrp-review-form-face))
   "Font-lock rules that treat form text as de-emphasized.")
 
+;;;###autoload
 (define-derived-mode hotcrp-review-mode text-mode "HotCRP-Review"
   "Major mode for editing HotCRP offline reviews with response-only word counts.
 - Form prompts/headers are visually distinct.
